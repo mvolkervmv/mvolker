@@ -79,6 +79,49 @@ login salvo em disco e espera receber a credencial do OpenClaw, que não a forne
 
 ---
 
+### 7. Bot para de responder algumas horas depois (pós-atualização 2026.7.x)
+**Sintoma:** tudo funciona enquanto você está logado por SSH; horas depois o bot fica
+mudo. O servidor **não** reiniciou.
+
+**Causa:** a 2026.7.x supervisiona o gateway por um serviço **systemd de usuário**
+(`openclaw-gateway.service`), e serviços de usuário são encerrados quando a sessão do
+usuário termina — a menos que *linger* esteja habilitado (`Linger=no` era o caso).
+
+**Solução:**
+```bash
+loginctl enable-linger root
+openclaw gateway start
+```
+**Teste válido:** sair do SSH, esperar ~2 min e mandar mensagem ao bot.
+
+**Efeito colateral relacionado:** os starts manuais por `nohup`/cron que funcionavam na
+2026.4.x passam a colidir com o serviço:
+```
+Gateway failed to start: gateway already running (pid N); lock timeout after 5000ms
+Port 18789 is already in use.
+```
+Remova o `@reboot` e qualquer watchdog que suba o gateway por fora.
+
+---
+
+### 8. `openclaw update` deixa o binário inexecutável
+**Sintoma:** após atualizar, qualquer comando responde
+`Node.js >=22.22.3 <23, >=24.15.0 <25, or >=25.9.0 is required (current: v22.22.2)`.
+O update reporta `Before: 2026.4.8 / After: 2026.7.1-2` **e** `Update Result: ERROR`.
+
+**Causa:** a versão nova exige Node mais recente. O pacote é instalado mesmo assim.
+
+**Solução:** atualizar o Node (o repositório NodeSource 22.x já tinha 22.23.1):
+```bash
+apt-get update && apt-get install -y --only-upgrade nodejs
+```
+Faça backup **antes** de atualizar: `tar czf /root/backup.tar.gz -C /root .openclaw .claude .claude.json`
+
+> Cuidado ao nomear scripts: um script chamado `atualizar-openclaw.sh` é morto pelo
+> próprio `pkill -f openclaw` que ele executa. Use `pkill -f openclaw-gateway`.
+
+---
+
 ## Hipóteses testadas e descartadas
 
 | Hipótese | Teste | Resultado |

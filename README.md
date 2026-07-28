@@ -4,10 +4,15 @@ Documentação da configuração **real e funcionando** do agente OpenClaw usand
 **assinatura do Claude** (sem gastar créditos de API), num VPS Hostinger.
 
 - **VPS:** Hostinger, Ubuntu, `srv1571237`
-- **OpenClaw:** 2026.4.8 · **Claude Code:** 2.1.220
+- **OpenClaw:** 2026.7.1-2 · **Claude Code:** 2.1.220 · **Node:** 22.23.1
 - **Modelo:** `claude-cli/claude-sonnet-4-6` (backend Claude CLI = assinatura)
-- **Canal ativo:** Telegram (`@valeriavira_bot`) ✅
-- **Pendente:** Email (Office 365) e WhatsApp
+- **Agentes:** `main`, `elvira` 🏗️, `vera` ⚖️, `victoria` 📋 — um bot Telegram cada ✅
+- **Pendente:** ClickUp por agente, email (Office 365) e WhatsApp
+
+> **Node ≥ 22.22.3 é requisito** da 2026.7.x. Atualizar o OpenClaw sem atualizar o Node
+> deixa o binário instalado porém inexecutável (`openclaw` recusa a rodar).
+
+Arquitetura dos três agentes: veja [`ESTRUTURA.md`](ESTRUTURA.md).
 
 ---
 
@@ -41,22 +46,35 @@ exec /usr/bin/claude-real "$@"
 
 ## 2. Como iniciar / reiniciar o agente
 
-O gateway roda **solto** (não use systemd — veja a seção 5).
+A partir da **2026.7.x** o OpenClaw se supervisiona sozinho por um serviço **systemd de
+usuário** (`openclaw-gateway.service`). Use o mecanismo dele — **não** inicie por
+`nohup`/cron em paralelo, senão dá conflito de porta e `lock timeout`.
 
 ```bash
-pkill -9 -f openclaw; sleep 3
-set -a; . /root/.openclaw/gateway.env; set +a
-nohup setsid openclaw gateway >/root/.openclaw/_gw_manual.log 2>&1 </dev/null & disown
-sleep 22
-openclaw health
+openclaw gateway status     # estado do serviço + conectividade
+openclaw gateway restart
+openclaw gateway stop
+openclaw gateway install    # (re)instala o unit para a versão atual
 ```
 
-Ou use o script pronto: `sudo bash restart-gateway.sh`
+Equivalentes via systemd:
+```bash
+systemctl --user status  openclaw-gateway
+systemctl --user restart openclaw-gateway
+```
 
-**Persistência no boot** — cron `@reboot` (já instalado):
+### ⚠️ Linger — obrigatório
+
+Serviço de usuário **morre quando a sessão SSH encerra**. Sem isto, o bot para de
+responder assim que você desconecta:
+
+```bash
+loginctl enable-linger root
+loginctl show-user root | grep -i linger    # deve dizer Linger=yes
 ```
-@reboot /bin/bash -lc "set -a; . /root/.openclaw/gateway.env; exec setsid openclaw gateway >/root/.openclaw/_gw_boot.log 2>&1"
-```
+
+**Teste correto de persistência:** saia do SSH (`exit`), espere ~2 min e mande mensagem
+para um bot. Testar com a sessão aberta não prova nada.
 
 ---
 
@@ -102,21 +120,27 @@ Veja `TROUBLESHOOTING.md` para o histórico completo de erros e causas.
 
 | ❌ Não faça | Por quê |
 |------------|---------|
-| Rodar o gateway via **systemd** | O OpenClaw se autogerencia e é morto com `SIGKILL` (`already running under systemd`). Rodou 106 dias estável no modo solto. |
+| Iniciar por `nohup`/cron **junto** com o serviço | A 2026.7.x supervisiona via systemd de usuário. Dois starts = `lock timeout` + porta 18789 ocupada, e o bot para. Use `openclaw gateway start/restart`. |
+| Criar um unit systemd **próprio** | Na 2026.4.x isso causava `SIGKILL`/`already running under systemd`. Use o unit oficial (`openclaw gateway install`). |
+| Esquecer o **linger** | Serviço de usuário morre no logout do SSH. `loginctl enable-linger root`. |
 | Passar a credencial por **variável de ambiente** | O OpenClaw remove `CLAUDE_CODE_OAUTH_TOKEN` do processo filho. Use o login em disco. |
 | Escolher **"Anthropic setup-token"** no configure | Vai para a API paga → erro de billing. Use **"Anthropic Claude CLI"**. |
-| Deixar dois gateways rodando | Um bloqueia o outro (`already running`) e o bot para de responder. |
+| Atualizar o OpenClaw sem checar o **Node** | A 2026.7.x exige Node ≥ 22.22.3; abaixo disso o binário não executa. |
 
 ---
 
 ## 6. Pendências
 
-- [ ] **Segurança:** rotacionar o token do bot Telegram (@BotFather → `/revoke`) e o
-      token do gateway — ambos foram expostos durante o setup.
-- [ ] **Segurança:** `channels.telegram.dmPolicy` está `open` (qualquer um conversa com
-      o bot e consome sua assinatura). Restringir ao seu ID.
-- [ ] **Email Office 365** — não há canal de email nativo no OpenClaw; precisa ser
-      conectado via **MCP**.
+- [ ] **Segurança:** rotacionar o token do bot Telegram original (@BotFather → `/revoke`)
+      e o token do gateway — ambos foram expostos durante o setup.
+- [x] **Segurança:** `dmPolicy` do Telegram passou de `open` para `allowlist`; contas
+      novas usam pareamento (`openclaw pairing approve telegram <código>`).
+- [ ] **Ferramentas por agente:** tirar Bash/Write/Edit de Elvira, Vera e Victoria —
+      são assistentes de negócio, não precisam de shell (veja `ESTRUTURA.md` §6).
+- [ ] **ClickUp por agente** — usar `openclaw mcp tools` para filtrar as ~50 ferramentas
+      e reduzir consumo de contexto.
+- [ ] **Email Office 365** — MCP `o365` (`@softeria/ms-365-mcp-server`) já configurado
+      para uma conta; cada caixa adicional exige uma instância própria.
 - [ ] **WhatsApp** — pendente do eSIM. Usar número dedicado (risco de ban pela Meta).
 
 ---
