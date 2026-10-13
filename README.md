@@ -141,6 +141,8 @@ Veja `TROUBLESHOOTING.md` para o histórico completo de erros e causas.
       e reduzir consumo de contexto.
 - [ ] **Email Office 365** — MCP `o365` (`@softeria/ms-365-mcp-server`) já configurado
       para uma conta; cada caixa adicional exige uma instância própria.
+- [ ] **Conta Azul** — MCP local em `mcp/contaazul/` pronto; falta instalar no VPS,
+      rodar `npm run auth` e liberar para o agente do financeiro.
 - [ ] **WhatsApp** — pendente do eSIM. Usar número dedicado (risco de ban pela Meta).
 
 ---
@@ -154,3 +156,4 @@ Veja `TROUBLESHOOTING.md` para o histórico completo de erros e causas.
 | `gateway.env.example` | Modelo do `/root/.openclaw/gateway.env`. |
 | `AGENT.example.md` | Modelo de instruções de comportamento do agente. |
 | `TROUBLESHOOTING.md` | Histórico de erros, causas e soluções. |
+| `mcp/contaazul/` | Servidor MCP local da API v2 da Conta Azul (ver README próprio). |

@@ -1,0 +1,21 @@
+{
+  "name": "contaazul-mcp-local",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Servidor MCP local (stdio) para a API v2 da Conta Azul",
+  "type": "module",
+  "bin": {
+    "contaazul-mcp": "src/server.mjs"
+  },
+  "scripts": {
+    "start": "node src/server.mjs",
+    "auth": "node src/auth.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
+  }
+}
